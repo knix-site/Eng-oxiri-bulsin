@@ -3,7 +3,6 @@ import os
 import qrcode
 from datetime import datetime
 from PIL import ImageFont
-from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -417,4 +416,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
