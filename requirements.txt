@@ -1,7 +1,7 @@
-python-telegram-bot==20.7
-qrcode[pil]
+python-telegram-bot
 Pillow
-python -m pip install requests
 reportlab
+qrcode
+requests
 
 
