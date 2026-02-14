@@ -169,11 +169,11 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     if not current_test:
-        await update.message.reply_text("⏳ Test yo'q")
+        await update.message.reply_text("⏳ Test yakunlangan yoki test kodi xato yozildi, test kodini aniqlashtiring kanal:@Matematika_prime 📈")
         return
 
     if "*" not in text:
-        await update.message.reply_text("❗ Format: 55*abcde")
+        await update.message.reply_text("❗ Javoblarni bunday kiriting: 11(test kodi)*abcd...")
         return
 
     code, ans = text.split("*", 1)
@@ -184,7 +184,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     correct = sum(1 for i in range(len(key)) if i < len(ans) and ans[i] == key[i])
     percent = int((correct / len(key)) * 100)
     current_test["results"][uid] = {"correct": correct, "percent": percent, "answers": ans}
-    await update.message.reply_text("✅ Javob qabul qilindi")
+    await update.message.reply_text("✅ Javobingiz qabul qilindi test yakunlanganda kanal va shu yerda natijalar ko'rinadi, Omad 😊")
 
 # ================= STOP TEST =================
 async def stop_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -213,7 +213,7 @@ async def stop_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 result_text += f"{i+1}. ❌\n"
 
-        if percent >= 90: praise = "🏆 Vopshe a'loku, marslikmisiz ...!"
+        if percent >= 90: praise = "🏆 Vapshe a'loku, marslikmisiz...!"
         elif percent >= 70: praise = "👏 Yaxshi natija!"
         elif percent >= 50: praise = "✍️ Harakat qilishingiz kerak!"
         else: praise = "😅 Bo'mapsiz eee..."
@@ -250,13 +250,14 @@ async def admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "results":
         context.user_data["admin_step"] = "which"
-        # PDF chiqarish
-        for test in reversed(history):
-            if test["code"] == current_test.get("code"):
-                file = generate_pdf(test)
-                await context.bot.send_document(ADMIN_ID, open(file, "rb"))
-                os.remove(file)
-                return
+        # Oxirgi test PDF
+        if history:
+            last_test = history[-1]
+            file = generate_pdf(last_test)
+            await context.bot.send_document(ADMIN_ID, open(file, "rb"))
+            os.remove(file)
+        else:
+            await query.edit_message_text("❌ Hali test natijalari yo'q")
 
     if query.data == "stop":
         await stop_test(update, context)
