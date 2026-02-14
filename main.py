@@ -4,6 +4,9 @@ from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 7581895473
@@ -29,17 +32,60 @@ users = load(USERS_FILE, {})
 history = load(HISTORY_FILE, [])
 current_test = {}
 
+# ================= PDF GENERATOR =================
+def generate_pdf(test):
+    filename = f"natija_{test['code']}.pdf"
+    doc = SimpleDocTemplate(filename, pagesize=A4)
+
+    sorted_results = sorted(
+        test["results"],
+        key=lambda x: x["percent"],
+        reverse=True
+    )
+
+    data = [["O'rin", "Ism Familiya", "Foiz", "To'g'ri"]]
+
+    for i, r in enumerate(sorted_results, start=1):
+        fullname = f"{r['surname']} {r['name']}"
+        q_count = test.get("question_count", "N/A")
+        data.append([
+            str(i),
+            fullname,
+            f"{r['percent']}%",
+            f"{r['correct']}/{q_count}"
+        ])
+
+    table = Table(data, colWidths=[60, 260, 100, 100], rowHeights=35)
+
+    style = [
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1f4e79")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ]
+
+    for i, r in enumerate(sorted_results, start=1):
+        percent = r["percent"]
+        if percent >= 90: color = colors.green
+        elif percent >= 70: color = colors.blue
+        elif percent >= 50: color = colors.orange
+        else: color = colors.red
+        style.append(('TEXTCOLOR', (2,i), (2,i), color))
+
+    table.setStyle(TableStyle(style))
+    doc.build([table])
+    return filename
+
 # ================= CERTIFICATE =================
 def generate_certificate(user, percent, tg_id, test_code):
     width, height = 1600, 1000
     img = Image.new("RGB", (width, height), "#eeeeee")
     draw = ImageDraw.Draw(img)
 
-    # Ramkalar
-    draw.rectangle([10, 10, width-10, height-10], outline="#2c3e50", width=40)
-    draw.rectangle([80, 80, width-80, height-80], outline="#f1c40f", width=8)
+    draw.rectangle([10,10,width-10,height-10], outline="#2c3e50", width=40)
+    draw.rectangle([80,80,width-80,height-80], outline="#f1c40f", width=8)
 
-    # Fontlar: lokal arial.ttf
     try:
         title_font = ImageFont.truetype("arial.ttf", 95)
         subtitle_font = ImageFont.truetype("arial.ttf", 40)
@@ -51,12 +97,10 @@ def generate_certificate(user, percent, tg_id, test_code):
 
     def center(text, y, font, color="#2c3e50"):
         w = draw.textlength(text, font=font)
-        draw.text(((width - w) / 2, y), text, fill=color, font=font)
+        draw.text(((width - w)/2, y), text, fill=color, font=font)
 
-    # Sertifikat matnlari
     center("SERTIFIKAT", 170, title_font)
     center("Ushbu sertifikat matematika fanidan olingan bilim darajasini tasdiqlaydi", 300, subtitle_font)
-
     fullname = f"{user['surname'].upper()} {user['name'].upper()}"
     center(fullname, 430, name_font, "#e74c3c")
     center("Matematika fanidan o'tkazilgan test sinovida", 610, text_font)
@@ -64,7 +108,6 @@ def generate_certificate(user, percent, tg_id, test_code):
 
     today = datetime.now().strftime("%d.%m.%Y")
     draw.text((140, 860), f"Sana: {today}", fill="#2c3e50", font=small_font)
-
     academy = "Matematika Prime Akademiyasi"
     w = draw.textlength(academy, font=small_font)
     draw.text((width - w - 140, 860), academy, fill="#2c3e50", font=small_font)
@@ -88,7 +131,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         context.user_data["step"] = "name"
         await update.message.reply_text("👤 Ismingiz:")
         return
-
     await update.message.reply_text("📝 Test kod*javob\nMasalan: 55*abcde")
 
 # ================= TEXT HANDLER =================
@@ -171,9 +213,9 @@ async def stop_test(update: Update, context: ContextTypes.DEFAULT_TYPE):
             else:
                 result_text += f"{i+1}. ❌\n"
 
-        if percent >= 90: praise = "🏆 Vapshe a'loku, marslikmisiz...!"
+        if percent >= 90: praise = "🏆 Vopshe a'loku, marslikmisiz ...!"
         elif percent >= 70: praise = "👏 Yaxshi natija!"
-        elif percent >= 50: praise = "✍️ Harakat qiling!"
+        elif percent >= 50: praise = "✍️ Harakat qilishingiz kerak!"
         else: praise = "😅 Bo'mapsiz eee..."
 
         result_text += f"\n📈 Natija: {percent}%\n\n{praise}"
@@ -201,9 +243,21 @@ async def admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.from_user.id != ADMIN_ID: return
+
     if query.data == "new":
         context.user_data["admin_step"] = "code"
         await query.edit_message_text("Test kodini kiriting:")
+
+    if query.data == "results":
+        context.user_data["admin_step"] = "which"
+        # PDF chiqarish
+        for test in reversed(history):
+            if test["code"] == current_test.get("code"):
+                file = generate_pdf(test)
+                await context.bot.send_document(ADMIN_ID, open(file, "rb"))
+                os.remove(file)
+                return
+
     if query.data == "stop":
         await stop_test(update, context)
 
