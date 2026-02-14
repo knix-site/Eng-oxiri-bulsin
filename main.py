@@ -2,7 +2,6 @@ import json
 import os
 import qrcode
 from datetime import datetime
-from PIL import ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     ApplicationBuilder,
@@ -16,6 +15,7 @@ from telegram.ext import (
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
+from PIL import ImageFont
 
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = 7581895473
@@ -416,5 +416,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
