@@ -114,11 +114,11 @@ def generate_certificate(user, percent, tg_id, test_code):
 
     # ===== FONTLAR =====
     try:
-        title_font = ImageFont.truetype("fonts/DejaVuSans-Bold.ttf", 95)
-        subtitle_font = ImageFont.truetype("fonts/DejaVuSans.ttf", 40)
-        name_font = ImageFont.truetype("fonts/DejaVuSans-Bold.ttf", 85)
-        text_font = ImageFont.truetype("fonts/DejaVuSans.ttf", 48)
-        small_font = ImageFont.truetype("fonts/DejaVuSans.ttf", 36)
+        title_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 95)
+        subtitle_font = ImageFont.truetype("DejaVuSans.ttf", 40)
+        name_font = ImageFont.truetype("DejaVuSans-Bold.ttf", 85)
+        text_font = ImageFont.truetype("DejaVuSans.ttf", 48)
+        small_font = ImageFont.truetype("DejaVuSans.ttf", 36)
 
     except:
         title_font = subtitle_font = name_font = text_font = small_font = ImageFont.load_default()
@@ -416,4 +416,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
