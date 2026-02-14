@@ -173,7 +173,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     if "*" not in text:
-        await update.message.reply_text("❗ Javoblarni bunday kiriting: 11(test kodi)*abcd...")
+        await update.message.reply_text("❗ Javoblarni bunday fomatda kiriting masalan: 11*abcd... yani 👉 (test kodi)*(Sizning javoblaringiz)")
         return
 
     code, ans = text.split("*", 1)
@@ -273,3 +273,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
