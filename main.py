@@ -1,8 +1,6 @@
 import json
 import os
 import qrcode
-import requests
-from io import BytesIO
 from datetime import datetime
 from PIL import Image, ImageDraw, ImageFont
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
@@ -44,6 +42,60 @@ users = load(USERS_FILE, {})
 history = load(HISTORY_FILE, [])
 current_test = {}
 
+# ================= PDF GENERATOR =================
+
+def generate_pdf(test):
+
+    filename = f"natija_{test['code']}.pdf"
+    doc = SimpleDocTemplate(filename, pagesize=A4)
+
+    sorted_results = sorted(
+        test["results"],
+        key=lambda x: x["percent"],
+        reverse=True
+    )
+
+    data = [["O'rin", "Ism Familiya", "Foiz", "To'g'ri"]]
+
+    for i, r in enumerate(sorted_results, start=1):
+        fullname = f"{r['surname']} {r['name']}"
+        # Safe access to question_count
+        q_count = test.get("question_count", "N/A")
+        data.append([
+            str(i),
+            fullname,
+            f"{r['percent']}%",
+            f"{r['correct']}/{q_count}"
+        ])
+
+    table = Table(data, colWidths=[60, 260, 100, 100], rowHeights=35)
+
+    style = [
+        ('GRID', (0,0), (-1,-1), 1, colors.black),
+        ('BACKGROUND', (0,0), (-1,0), colors.HexColor("#1f4e79")),
+        ('TEXTCOLOR', (0,0), (-1,0), colors.white),
+        ('ALIGN',(0,0),(-1,-1),'CENTER'),
+        ('VALIGN',(0,0),(-1,-1),'MIDDLE'),
+    ]
+
+    for i, r in enumerate(sorted_results, start=1):
+        percent = r["percent"]
+
+        if percent >= 90:
+            color = colors.green
+        elif percent >= 70:
+            color = colors.blue
+        elif percent >= 50:
+            color = colors.orange
+        else:
+            color = colors.red
+
+        style.append(('TEXTCOLOR', (2,i), (2,i), color))
+
+    table.setStyle(TableStyle(style))
+    doc.build([table])
+    return filename
+
 # ================= CERTIFICATE =================
 
 def generate_certificate(user, percent, tg_id, test_code):
@@ -52,22 +104,22 @@ def generate_certificate(user, percent, tg_id, test_code):
     img = Image.new("RGB", (width, height), "#eeeeee")
     draw = ImageDraw.Draw(img)
 
+    # ===== TASHQI QALIN RAMKA =====
     draw.rectangle([10, 10, width-10, height-10],
                    outline="#2c3e50", width=40)
 
+    # ===== ICHKI OLTIN RAMKA =====
     draw.rectangle([80, 80, width-80, height-80],
                    outline="#f1c40f", width=8)
 
-    # ===== ONLINE ARIAL FONT =====
+    # ===== FONTLAR =====
     try:
-        font_url = "https://raw.githubusercontent.com/FreddieThePebble/Worlds-Worst-Fonts/main/Fonts/Arial.ttf"
-        font_data = requests.get(font_url).content
+        title_font = ImageFont.truetype("arial.ttf", 95) 
+        subtitle_font = ImageFont.truetype("arial.ttf", 40) 
+        name_font = ImageFont.truetype("arial.ttf", 85) 
+        text_font = ImageFont.truetype("arial.ttf", 48) 
+        small_font = ImageFont.truetype("arial.ttf", 36)
 
-        title_font = ImageFont.truetype(BytesIO(font_data), 95)
-        subtitle_font = ImageFont.truetype(BytesIO(font_data), 40)
-        name_font = ImageFont.truetype(BytesIO(font_data), 85)
-        text_font = ImageFont.truetype(BytesIO(font_data), 48)
-        small_font = ImageFont.truetype(BytesIO(font_data), 36)
     except:
         title_font = subtitle_font = name_font = text_font = small_font = ImageFont.load_default()
 
@@ -75,21 +127,40 @@ def generate_certificate(user, percent, tg_id, test_code):
         w = draw.textlength(text, font=font)
         draw.text(((width - w) / 2, y), text, fill=color, font=font)
 
-    center("SERTIFIKAT", 170, title_font)
-    center("Ushbu sertifikat matematika fanidan olingan bilim darajasini tasdiqlaydi", 300, subtitle_font)
+    # ===== SERTIFIKAT =====
+    center("SERTIFIKAT", 170, title_font, "#2c3e50")
 
+    # ===== IZOH MATN =====
+    center(
+        "Ushbu sertifikat matematika fanidan olingan bilim darajasini tasdiqlaydi",
+        300, subtitle_font
+    )
+
+    # ===== ISM =====
     fullname = f"{user['surname'].upper()} {user['name'].upper()}"
     center(fullname, 430, name_font, "#e74c3c")
 
-    center("Matematika fanidan o'tkazilgan test sinovida", 610, text_font)
-    center(f"ishtirok etib, {percent}% natija qayd etdi.", 680, text_font)
+    # ===== ASOSIY MATN =====
+    line1 = "Matematika fanidan o'tkazilgan test sinovida"
+    line2 = f"ishtirok etib, {percent}% natija qayd etdi."
 
+    center(line1, 610, text_font)
+    center(line2, 680, text_font)
+
+    # ===== SANA =====
     today = datetime.now().strftime("%d.%m.%Y")
-    draw.text((140, 860), f"Sana: {today}", fill="#2c3e50", font=small_font)
+    draw.text((140, 860),
+              f"Sana: {today}",
+              fill="#2c3e50",
+              font=small_font)
 
+    # ===== AKADEMIYA NOMI =====
     academy = "Matematika Prime Akademiyasi"
     w = draw.textlength(academy, font=small_font)
-    draw.text((width - w - 140, 860), academy, fill="#2c3e50", font=small_font)
+    draw.text((width - w - 140, 860),
+              academy,
+              fill="#2c3e50",
+              font=small_font)
 
     filename = f"cert_{tg_id}_{test_code}.jpg"
     img.save(filename, quality=95)
@@ -126,6 +197,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = str(update.effective_user.id)
     text = update.message.text.strip().lower()
 
+    # ===== ADMIN =====
     if update.effective_user.id == ADMIN_ID:
 
         step = context.user_data.get("admin_step")
@@ -154,11 +226,25 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         if step == "which":
-            await update.message.reply_text("Bu funksiyani keyin qo‘shamiz")
+            # Search from latest tests first
+            for test in reversed(history):
+                if test["code"] == text:
+                    try:
+                        file = generate_pdf(test)
+                        await update.message.reply_document(open(file, "rb"))
+                        os.remove(file)
+                        context.user_data.clear()
+                        return
+                    except Exception as e:
+                        await update.message.reply_text(f"❌ Xatolik yuz berdi: {e}")
+                        return
+
+            await update.message.reply_text("❌ Test topilmadi")
             return
 
         return
 
+    # ===== USER REGISTRATION =====
     if uid not in users:
 
         step = context.user_data.get("step")
@@ -179,6 +265,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text("✅ Ro'yxatdan o'tdingiz")
             return
 
+    # ===== TEST ANSWER =====
     if not current_test:
         await update.message.reply_text("⏳ Test yo'q")
         return
@@ -302,11 +389,16 @@ async def admin_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "results":
         context.user_data["admin_step"] = "which"
-        await query.edit_message_text("Bu funksiya hozircha o‘chirilgan")
+        await query.edit_message_text("Qaysi test kodi kerak?")
         return
 
     if query.data == "stop":
         await stop_test(update, context)
+
+# ================= ERROR HANDLER =================
+
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE) -> None:
+    print(f"Update {update} caused error {context.error}")
 
 # ================= MAIN =================
 
@@ -316,6 +408,8 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(admin_buttons))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    
+    app.add_error_handler(error_handler)
 
     print("🔥 PRIME STABLE BOT ISHLADI")
     app.run_polling()
