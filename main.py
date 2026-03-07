@@ -267,7 +267,7 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ===== TEST ANRSWE =====
     if not current_test:
-        await update.message.reply_text("⏳ Bunday test mavjud emas yoki test kodi kirishda xatolik mavjud!\n\n👤 Muamolar haqida adminga murojaat qilishingiz mumkin: @Prime_math")
+        await update.message.reply_text("⏳ Bunday test mavjud emas yoki test kodi kiritishda xatolik mavjud!\n\n👤 Muamolar haqida adminga murojaat qilishingiz mumkin: @Prime_math")
         return
 
     if "*" not in text:
@@ -416,4 +416,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
